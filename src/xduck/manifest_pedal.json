@@ -1,0 +1,71 @@
+{
+  "effect_name": "XDuck",
+  "comment": "PEDAL BUILD manifest for XDuck (9-knob). Cross-sidechain ducker / gate: the R channel's level drives the gain of L and the L channel's level drives R. Plug the instrument into IN L and the control signal (drum machine, kick, loop) into IN R. Put XDuck first in the patch so the key reaches it unprocessed: XProbe showed the raw input buffer ctx[4] carries only L (its R half is silent), so a raw-R key is not available. Params arrive as UI*0.01 (LineSel clones), so every knob keeps max <= 100. Page 1 holds the mode controls (the ones changed most).",
+  "gid": 8,
+  "gid_comment": "0x08 = Delay category -> SONAME prefix ZDL_DLY_. Same proven category as the rest of the pack.",
+  "fxid": 486,
+  "fxid_comment": "0x1E6. Free: not in tools/effects_db.json (stock, custom, probes, legacy) nor in any src manifest.",
+  "fxid_version": "1.13",
+  "fxid_version_comment": "Bump on every pedal build. Not drawn on the pedal screen (user's request); shown under the Effect Manager preview. History: C:\\zoom\\zdlnew\\XDuck_versions.txt.",
+  "flags_byte": 1,
+  "dsp_cost": 20.0,
+  "params": [
+    {
+      "name": "Type",
+      "max": 2,
+      "default": 0,
+      "comment": "0 Duck (key loud -> target quieter), 1 Gate (key loud -> target opens), 2 Tex (texture: the target's level follows the key's envelope continuously, dB for dB at Ratio 100, like a one-band vocoder; both outputs carry the mono sum of the two processed channels)."
+    },
+    {
+      "name": "Route",
+      "max": 4,
+      "default": 0,
+      "comment": "0 X: R keys L and L keys R. 1 R>L: R keys L, R passes. 2 R<L: L keys R, L passes. 3 KeyR: R keys L, R output silent (R is only the key). 4 KeyL: L keys R, L output silent (L is only the key). With Type=Tex the two outputs are summed to both sides."
+    },
+    {
+      "name": "Freq",
+      "max": 13,
+      "default": 0,
+      "comment": "Key band-pass (what the detector listens to). 0 Full = no filter; 1..13 = centre 40 Hz .. 8 kHz in equal ratio steps (x1.555): 40,60,100,150,230,360,570,880,1.4k,2.1k,3.3k,5.1k,8k."
+    },
+    {
+      "name": "Thresh",
+      "max": 60,
+      "default": 40,
+      "comment": "Key threshold in dB below full scale: 40 = -40 dB. Higher = reacts to quieter key."
+    },
+    {
+      "name": "Range",
+      "max": 60,
+      "default": 40,
+      "comment": "Maximum gain reduction in dB (duck depth / gate floor)."
+    },
+    {
+      "name": "Ratio",
+      "max": 100,
+      "default": 80,
+      "comment": "Duck: compression slope, 100 = limiter (inf:1). Gate: expander steepness, 100 = hard gate."
+    },
+    {
+      "name": "Attack",
+      "max": 100,
+      "default": 15,
+      "comment": "0.1 ms .. 100 ms, exponential. Duck: how fast it ducks. Gate: how fast it opens."
+    },
+    {
+      "name": "Hold",
+      "max": 100,
+      "default": 10,
+      "comment": "0 .. 500 ms, linear. The key level is held this long after it falls: duck stays down, gate stays open."
+    },
+    {
+      "name": "Release",
+      "max": 100,
+      "default": 45,
+      "comment": "5 ms .. 2.5 s, exponential. Duck: recovery (the pump). Gate: how fast it closes."
+    }
+  ],
+  "audio_func_name": "Fx_DLY_XDuck",
+  "audio_nop": false,
+  "audio_nop_comment": "Set true for a UI-only smoke build before trusting the DSP."
+}
