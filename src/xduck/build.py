@@ -23,6 +23,10 @@ from custom_covers import make_cover  # noqa: E402
 from parameter_display import pedal_name  # noqa: E402
 from pack_covers import XDUCK_KNOBS, xduck_art  # noqa: E402
 from screen_image import Canvas  # noqa: E402
+sys.path.insert(0, str(HERE))
+from knob_icons import xduck_type_icons  # noqa: E402
+
+KNOB_PIC, KNOB_FRAMES = xduck_type_icons()
 
 TI_ROOT = Path(r"C:\ti\ccs2101\ccs\tools\compiler\ti-cgt-c6000_8.5.0.LTS")
 CL6X = TI_ROOT / "bin" / "cl6x"
@@ -121,6 +125,9 @@ def main() -> None:
         audio_nop=manifest.get("audio_nop", False),
         dsp_cost=manifest.get("dsp_cost", 20.0),
         knob_positions=XDUCK_KNOBS,
+        allow_fewer_knob_boxes=True,
+        knob_pic=KNOB_PIC,                     # Type symbol: duck / gate / wave
+        knob_frames=KNOB_FRAMES,
         use_object_edit_handlers=False,
         synthesize_linesel_edit_handlers=True,
         synth_edit_start_index=2,

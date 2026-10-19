@@ -3,7 +3,7 @@ import math
 from screen_image import Canvas
 from stock_style_covers import fill,line,round_shape
 from lcd_geometry import PIXEL_ASPECT
-NAMES={'Oxide','Galactic','Flower','Shatter','Arrakis','Microlm','Corrupt','Klang','GenLoss','Scorch','Howl','Taffy','Dissolve','Mangle','Hydra','Rewire','Dustbox','Spiral','Gyre','Tonic','XDuck'}
+NAMES={'Oxide','Galactic','Flower','Shatter','Arrakis','Microlm','Corrupt','Klang','GenLoss','Scorch','Howl','Taffy','Dissolve','Mangle','Hydra','Rewire','Dustbox','Spiral','Gyre','Tonic','XDuck','sForm'}
 
 def word(c,text,x,y,sx=2,sy=2,v=1,lean=0):
     # Compact stock-style block lettering; all marks stay on the pixel grid.
@@ -28,7 +28,11 @@ def spark(c,x,y,r=2):
 # XDuck: firmware value boxes in one horizontal row, bottom-left. Every one of
 # the ~820 stock ZDLs uses a horizontal row; a vertical column (1.06) drew a
 # stray bar on the pedal. build.py passes this list to the linker.
-XDUCK_KNOBS=[(2,0,48),(3,20,48),(4,40,48)]
+# 1.14: a single box (page knob 1 = Type on page 1) instead of three; the
+# linker needs allow_fewer_knob_boxes=True for this (hardware experiment).
+# 1.19: moved from x=0 to x=14 (the stock first-box x): at x=0 the box sits
+# under the firmware's "effect on the left" tab.
+XDUCK_KNOBS=[(2,14,48)]
 
 def xduck_art():
     import json
@@ -47,9 +51,26 @@ def draw_xduck(labels,version=None):
             if ch=='1':c.px(x,y)
     return c
 
+SFORM_KNOBS=[(2,14,48)]  # one value box, stock first-box x (x=0 is under the left-effect tab)
+
+def draw_sform(labels,version=None):
+    # Whole screen is a 1-bit downscale of the user's SILKFORM reference
+    # (src/custom/sform/sform_art.json).
+    import json
+    from pathlib import Path
+    f=Path(__file__).resolve().parents[2]/'custom'/'sform'/'sform_art.json'
+    art=json.loads(f.read_text(encoding='utf-8'))
+    c=Canvas()
+    (_,bx,by),=SFORM_KNOBS
+    for y,row in enumerate(art['screen']):
+        for x,ch in enumerate(row):
+            if ch=='1' and not (bx<=x<bx+20 and by<=y<by+15):c.px(x,y)
+    return c
+
 def draw(name,labels,version=None):
     from custom_covers import knob_layout
     if name=='XDuck':return draw_xduck(labels,version)
+    if name=='sForm':return draw_sform(labels,version)
     c=Canvas()
     # Control coordinates remain byte-for-byte compatible with existing ZDLs.
     c.hline(3,124,63)

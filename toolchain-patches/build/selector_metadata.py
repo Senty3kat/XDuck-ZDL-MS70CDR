@@ -18,6 +18,20 @@ def groups(labels, classify, maximum=100):
     for g in result: g['value']=(g['from']+g['to'])//2
     return result
 
+def _sform_rate(r):
+    # sForm Rate knob 0..99 -> 0.1 .. 10.0 Hz in 0.1 Hz steps (sform.c: 0.1*(r+1)).
+    return f'{(r+1)/10:.1f}'
+
+_NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+def _sform_note(r):
+    # sForm Note knob (max 101, the largest proven on the pedal): 0 Off,
+    # 1..94 = C0..A7 (MIDI 12..105), 95..101 = in-48 in-36 in-24 in-12 in in+12 in+24.
+    if r==0: return 'Off'
+    if r>94: return ['in-48','in-36','in-24','in-12','in','in+12','in+24'][r-95]
+    return f'{_NOTE_NAMES[(r-1)%12]}{(r-1)//12}'
+
+SFORM_LABELS={'Rate':[_sform_rate(r) for r in range(100)],'Note':[_sform_note(r) for r in range(102)]}
+
 SELECTORS={
  'Tonic':{
    'Mode':groups(['Decim','Crush','FM','Ring'],lambda r:ladder(r,[.25,.5,.75])),
@@ -32,8 +46,15 @@ SELECTORS={
  'Stasis':{'Capture':groups(['Stomp','Release','Hold'],lambda r:r,2)},
  'XDuck':{
    'Type':groups(['Duck','Gate','Tex'],lambda r:r,2),
-   'Route':groups(['X','R>L','R<L','KeyR','KeyL'],lambda r:r,4),
+   'Route':groups(['X','R>L','R<L','KeyR','KeyL','sForm','sFPan'],lambda r:r,6),
    'Freq':groups(['Full','40','60','100','150','230','360','570','880','1.4k','2.1k','3.3k','5.1k','8k'],lambda r:r,13),
+ },
+ 'sForm':{
+   # Rate and Note labels are computed in sform.c (ZDL_GetLabel_1/_8): as
+   # if-chains they cost ~9 KB; SFORM_LABELS below is for previews/tests.
+   'Mult':groups(['x.01','x.02','x.05','x0.1','x0.2','x0.5','x1','x2','x5','x10','x20','x50','x100'],lambda r:r,12),
+   'Wave':groups(['Sine','Tri','SawUp','SawDn','Squar','S&H','Drift'],lambda r:r,6),
+   'Out':groups(['XDuck','Drone','DrnSt'],lambda r:r,2),
  },
  'XProbe':{
    'Src':groups(['FxL','FxR','RawL','RawR','Mute','Pass'],lambda r:r,5),

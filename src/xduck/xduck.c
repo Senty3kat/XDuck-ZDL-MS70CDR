@@ -10,7 +10,17 @@
  *                          at Ratio 100; both outputs = L + R mono sum)
  *   Route   (params[6])  - 0 X (R keys L, L keys R), 1 R>L (R keys L, R
  *                          passes), 2 R<L (L keys R, L passes), 3 KeyR (R keys
- *                          L, R output silent), 4 KeyL (L keys R, L silent)
+ *                          L, R output silent), 4 KeyL (L keys R, L silent),
+ *                          5 sForm (R carries sForm's LFO, Out=Link: the
+ *                          gain of L follows |R| sample by sample; Duck and
+ *                          Tex use Range only; Gate opens where the wave
+ *                          crosses Thresh (30 = mid-wave, linear in the LFO
+ *                          value) with Ratio as its steepness (0 = follows
+ *                          the wave, 100 = hard on/off); no smoothing of any
+ *                          kind; Attack, Hold, Release and Freq are not used;
+ *                          processed L goes to both outputs),
+ *                          6 sFPan (as sForm, but the R output follows the
+ *                          LFO 180 degrees later: auto-pan of L)
  *   Thresh  (params[8])  - key threshold, 0..60 -> 0..-60 dB
  *   Range   (params[9])  - max gain reduction, 0..60 dB
  *   Ratio   (params[10]) - duck: 0..1 compression slope (100 = limiter);
@@ -41,7 +51,7 @@
 #include "xduck_params.h"
 
 #ifndef XDUCK_AUDIO_FUNC
-#define XDUCK_AUDIO_FUNC Fx_DLY_XDuck
+#define XDUCK_AUDIO_FUNC Fx_DYN_XDuck
 #endif
 
 #define XD_DO_PRAGMA(x) _Pragma(#x)
@@ -53,7 +63,7 @@ XD_CODE_SECTION(XDUCK_AUDIO_FUNC)
 #define ZDL_PTR(type, word) ((type)(uintptr_t)(word))
 
 #define XD_MAGIC   0x58444B31u   /* 'XDK1' */
-#define XD_VERSION 3u
+#define XD_VERSION 6u
 
 #define XD_DB_PER_LOG2  6.02059991f   /* 20*log10(2) */
 #define XD_LOG2_PER_DB  0.16609640f   /* 1 / 6.0206 */
@@ -204,11 +214,22 @@ void XDUCK_AUDIO_FUNC(unsigned int *ctx)
     float rRL = (routUi > 0.5f && routUi < 1.5f) ? 1.0f : 0.0f;
     float rLR = (routUi > 1.5f && routUi < 2.5f) ? 1.0f : 0.0f;
     float rKR = (routUi > 2.5f && routUi < 3.5f) ? 1.0f : 0.0f;
-    float rKL = (routUi > 3.5f) ? 1.0f : 0.0f;
-    float procL = rX + rRL + rKR;
+    float rKL = (routUi > 3.5f && routUi < 4.5f) ? 1.0f : 0.0f;
+    float rSF = (routUi > 4.5f) ? 1.0f : 0.0f;
+    float rPan = (routUi > 5.5f) ? 1.0f : 0.0f;
+    float procL = rX + rRL + rKR + rSF;
     float procR = rX + rLR + rKL;
     float keepL = 1.0f - rKL;
-    float keepR = 1.0f - rKR;
+    float keepR = 1.0f - rKR - rSF;
+    /* sForm link: gain floor = -Range dB; Duck = 1 - LFO, Tex = LFO, Gate =
+     * a linear ramp around the threshold: g = 0.5 + (LFO - thr) * steep,
+     * clipped to 0..1. thr = 1 - Thresh/60 (30 = mid-wave), steep 1 .. 100
+     * from Ratio. Instant, sample by sample: no envelope, no smoothing. */
+    float sfThr = 1.0f - thrUi * 0.01666667f;
+    float sfSteep = 1.0f + ratio * ratio * 99.0f;
+    float sfFloor = xd_exp2(-range * XD_LOG2_PER_DB);
+    float sfGate = (isGate > 0.5f && isTex < 0.5f) ? 1.0f : 0.0f;
+    float sfDuck = (isGate < 0.5f) ? 1.0f : 0.0f;
 
     /* One-pole coefficients: a = 1 - exp(-1/(t*fs)), t exponential in knob. */
     float xA = XD_ATK_X0 * xd_exp2(-XD_ATK_OCT * atk);
@@ -241,6 +262,7 @@ void XDUCK_AUDIO_FUNC(unsigned int *ctx)
     float gdbL = st->gdbL, gdbR = st->gdbR;
     float hL = st->holdL, hR = st->holdR;
     float s1L = st->s1L, s2L = st->s2L, s1R = st->s1R, s2R = st->s2R;
+    float c0 = 0.0f, c1 = 0.0f, gB = 1.0f;
     int i;
     for (i = 0; i < 8; i++) {
         float inL = fxBuf[i];
@@ -280,13 +302,45 @@ void XDUCK_AUDIO_FUNC(unsigned int *ctx)
         float gL = xd_exp2(gdbL * XD_LOG2_PER_DB);
         float gR = xd_exp2(gdbR * XD_LOG2_PER_DB);
 
+        if (rSF > 0.5f) {
+            /* Route sForm / sFPan: R is sForm's LFO. Out=Link puts the LFO on
+             * even samples and the 180-degree copy (sign-flipped) on odd
+             * ones; each pair is read at its even sample, before R is
+             * overwritten. Out=Repl gives c0 = c1. No detector, no envelope. */
+            if ((i & 1) == 0) {
+                float r1 = fxBuf[i + 9];
+                c0 = inR < 0.0f ? -inR : inR;
+                c1 = r1 < 0.0f ? -r1 : r1;
+                if (c0 > 1.0f) c0 = 1.0f;
+                if (c1 > 1.0f) c1 = 1.0f;
+            }
+            float sfA = sfFloor + (1.0f - sfFloor) * c0;           /* Tex */
+            float sfB = sfFloor + (1.0f - sfFloor) * c1;
+            sfA = sfA + sfDuck * ((1.0f - (1.0f - sfFloor) * c0) - sfA);
+            sfB = sfB + sfDuck * ((1.0f - (1.0f - sfFloor) * c1) - sfB);
+            float oA = 0.5f + (c0 - sfThr) * sfSteep;
+            float oB = 0.5f + (c1 - sfThr) * sfSteep;
+            if (oA < 0.0f) oA = 0.0f;
+            if (oA > 1.0f) oA = 1.0f;
+            if (oB < 0.0f) oB = 0.0f;
+            if (oB > 1.0f) oB = 1.0f;
+            oA = sfFloor + (1.0f - sfFloor) * oA;
+            oB = sfFloor + (1.0f - sfFloor) * oB;
+            sfA = sfA + sfGate * (oA - sfA);
+            sfB = sfB + sfGate * (oB - sfB);
+            gL = sfA;
+            gB = sfA + rPan * (sfB - sfA);
+        }
+
         float wetL = (inL + procL * (inL * gL - inL)) * keepL;
         float wetR = (inR + procR * (inR * gR - inR)) * keepR;
+        wetR = wetR + rSF * (inL * gB - wetR);       /* sForm: L on both sides */
 
         /* Tex: the two routed channels are mixed, same sum on both outputs. */
         float mono = wetL + wetR;
-        fxBuf[i]     = wetL + isTex * (mono - wetL);
-        fxBuf[i + 8] = wetR + isTex * (mono - wetR);
+        float texMix = isTex * (1.0f - rSF);
+        fxBuf[i]     = wetL + texMix * (mono - wetL);
+        fxBuf[i + 8] = wetR + texMix * (mono - wetR);
     }
 
     st->envL = envL;

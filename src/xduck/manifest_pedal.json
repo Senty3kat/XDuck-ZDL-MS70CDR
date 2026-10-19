@@ -1,11 +1,11 @@
 {
   "effect_name": "XDuck",
   "comment": "PEDAL BUILD manifest for XDuck (9-knob). Cross-sidechain ducker / gate: the R channel's level drives the gain of L and the L channel's level drives R. Plug the instrument into IN L and the control signal (drum machine, kick, loop) into IN R. Put XDuck first in the patch so the key reaches it unprocessed: XProbe showed the raw input buffer ctx[4] carries only L (its R half is silent), so a raw-R key is not available. Params arrive as UI*0.01 (LineSel clones), so every knob keeps max <= 100. Page 1 holds the mode controls (the ones changed most).",
-  "gid": 8,
-  "gid_comment": "0x08 = Delay category -> SONAME prefix ZDL_DLY_. Same proven category as the rest of the pack.",
-  "fxid": 486,
-  "fxid_comment": "0x1E6. Free: not in tools/effects_db.json (stock, custom, probes, legacy) nor in any src manifest.",
-  "fxid_version": "1.13",
+  "gid": 1,
+  "gid_comment": "0x01 = Dynamics category -> SONAME prefix ZDL_DYN_ (user's request 2026-10-19; was 0x08 Delay).",
+  "fxid": 501,
+  "fxid_comment": "0x1f5. Changed 2026-10-19 (was 486, which collides with matujuice's Choral/EuGate). Free in stock, themanro dist and matujuice dist.",
+  "fxid_version": "1.19",
   "fxid_version_comment": "Bump on every pedal build. Not drawn on the pedal screen (user's request); shown under the Effect Manager preview. History: C:\\zoom\\zdlnew\\XDuck_versions.txt.",
   "flags_byte": 1,
   "dsp_cost": 20.0,
@@ -18,9 +18,9 @@
     },
     {
       "name": "Route",
-      "max": 4,
+      "max": 6,
       "default": 0,
-      "comment": "0 X: R keys L and L keys R. 1 R>L: R keys L, R passes. 2 R<L: L keys R, L passes. 3 KeyR: R keys L, R output silent (R is only the key). 4 KeyL: L keys R, L output silent (L is only the key). With Type=Tex the two outputs are summed to both sides."
+      "comment": "0 X: R keys L and L keys R. 1 R>L: R keys L, R passes. 2 R<L: L keys R, L passes. 3 KeyR: R keys L, R output silent (R is only the key). 4 KeyL: L keys R, L output silent (L is only the key). With Type=Tex the two outputs are summed to both sides. 5 sForm: R carries sForm's LFO (sForm right before XDuck, Out=XDuck); the gain of L follows it sample by sample, no envelope or smoothing. Duck = 1-LFO, Tex = LFO, Gate = ramp around Thresh (30 = mid-wave) with Ratio as steepness (0 follows the wave, 100 hard); floor -Range dB. Attack/Hold/Release/Freq unused; processed L on both outputs. 6 sFPan: as sForm, but the R output follows the LFO 180 degrees later (auto-pan of L)."
     },
     {
       "name": "Freq",
@@ -65,7 +65,7 @@
       "comment": "5 ms .. 2.5 s, exponential. Duck: recovery (the pump). Gate: how fast it closes."
     }
   ],
-  "audio_func_name": "Fx_DLY_XDuck",
+  "audio_func_name": "Fx_DYN_XDuck",
   "audio_nop": false,
   "audio_nop_comment": "Set true for a UI-only smoke build before trusting the DSP."
 }

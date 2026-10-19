@@ -13,6 +13,7 @@ PEDAL_NAMES={
  'Spool':{'Flutter':'Flutr','Spring':'Sprng'},
  'Stasis':{'Length':'Len','Capture':'Capt'},
  'Taffy':{'Chance':'Chnce'},
+ 'sForm':{'Smooth':'Smth'},
  'XDuck':{'Thresh':'Thrsh','Attack':'Attk','Release':'Rels'},
 }
 def pedal_name(effect,name):return PEDAL_NAMES.get(effect,{}).get(name,name)
